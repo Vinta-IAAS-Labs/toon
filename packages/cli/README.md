@@ -1,8 +1,8 @@
 # @toon-format/cli
 
-Command-line tool for converting between JSON and TOON formats.
+Command-line tool for converting JSON to TOON and back, with token analysis and streaming support.
 
-[TOON (Token-Oriented Object Notation)](https://toonformat.dev) is a compact, human-readable serialization format designed for passing structured data to Large Language Models with significantly reduced token usage.
+[TOON (Token-Oriented Object Notation)](https://toonformat.dev) is a compact, human-readable encoding of the JSON data model that minimizes tokens for LLM input. The CLI lets you test conversions, analyze token savings, and integrate TOON into shell pipelines with stdin/stdout support—no code required.
 
 ## Installation
 
@@ -64,9 +64,9 @@ cat data.toon | toon --decode
 | `--indent <number>` | Indentation size (default: `2`) |
 | `--stats` | Show token count estimates and savings (encode only) |
 | `--no-strict` | Disable strict validation when decoding |
-| `--key-folding <mode>` | Enable key folding: `off`, `safe` (default: `off`) |
-| `--flatten-depth <number>` | Maximum folded segment count when key folding is enabled (default: `Infinity`) |
-| `--expand-paths <mode>` | Enable path expansion: `off`, `safe` (default: `off`) |
+| `--keyFolding <mode>` | Enable key folding: `off`, `safe` (default: `off`) |
+| `--flattenDepth <number>` | Maximum folded segment count when key folding is enabled (default: `Infinity`) |
+| `--expandPaths <mode>` | Enable path expansion: `off`, `safe` (default: `off`) |
 
 ## Advanced Examples
 
@@ -79,11 +79,12 @@ toon data.json --stats -o output.toon
 ```
 
 Example output:
+
 ```
-✓ Encoded to TOON
-  Input:  15,145 tokens (JSON)
-  Output:  8,745 tokens (TOON)
-  Saved:   6,400 tokens (42.3% reduction)
+✔ Encoded data.json → output.toon
+
+ℹ Token estimates: ~15,145 (JSON) → ~8,745 (TOON)
+✔ Saved ~6,400 tokens (-42.3%)
 ```
 
 ### Alternative Delimiters
@@ -92,12 +93,6 @@ Example output:
 
 ```bash
 toon data.json --delimiter "\t" -o output.toon
-```
-
-#### Pipe-separated with length markers
-
-```bash
-toon data.json --delimiter "|" --length-marker -o output.toon
 ```
 
 ### Lenient Decoding
@@ -121,6 +116,31 @@ cat large-dataset.json | toon --delimiter "\t" > output.toon
 jq '.results' data.json | toon > filtered.toon
 ```
 
+### Large Dataset Processing
+
+The CLI uses streaming output for both encoding and decoding, writing incrementally without building the full output string in memory:
+
+```bash
+# Encode large JSON file with minimal memory usage
+toon huge-dataset.json -o output.toon
+
+# Decode large TOON file with streaming JSON output
+toon huge-dataset.toon -o output.json
+
+# Process millions of records efficiently via stdin
+cat million-records.json | toon > output.toon
+cat million-records.toon | toon --decode > output.json
+```
+
+**Memory efficiency:**
+- **Encode (JSON → TOON)**: Streams TOON lines to output without full string in memory
+- **Decode (TOON → JSON)**: Uses the same event-based streaming decoder as the `decodeStream` API in `@toon-format/toon`, streaming JSON tokens to output without full string in memory
+- Peak memory usage scales with data depth, not total size
+- When `--expandPaths safe` is enabled, decode falls back to non-streaming mode internally to apply deep-merge expansion before writing JSON
+
+> [!NOTE]
+> When using `--stats` with encode, the full output string is kept in memory for token counting. Omit `--stats` for maximum memory efficiency with very large datasets.
+
 ### Key Folding (Since v1.5)
 
 Collapse nested wrapper chains to reduce tokens:
@@ -129,7 +149,7 @@ Collapse nested wrapper chains to reduce tokens:
 
 ```bash
 # Encode with key folding
-toon input.json --key-folding safe -o output.toon
+toon input.json --keyFolding safe -o output.toon
 ```
 
 For data like:
@@ -159,24 +179,24 @@ data:
 
 ```bash
 # Fold maximum 2 levels deep
-toon input.json --key-folding safe --flatten-depth 2 -o output.toon
+toon input.json --keyFolding safe --flattenDepth 2 -o output.toon
 ```
 
 #### Path expansion on decode
 
 ```bash
 # Reconstruct nested structure from folded keys
-toon data.toon --expand-paths safe -o output.json
+toon data.toon --expandPaths safe -o output.json
 ```
 
 #### Round-trip workflow
 
 ```bash
 # Encode with folding
-toon input.json --key-folding safe -o compressed.toon
+toon input.json --keyFolding safe -o compressed.toon
 
 # Decode with expansion (restores original structure)
-toon compressed.toon --expand-paths safe -o output.json
+toon compressed.toon --expandPaths safe -o output.json
 
 # Verify round-trip
 diff input.json output.json
@@ -186,7 +206,7 @@ diff input.json output.json
 
 ```bash
 # Key folding + tab delimiter + stats
-toon data.json --key-folding safe --delimiter "\t" --stats -o output.toon
+toon data.json --keyFolding safe --delimiter "\t" --stats -o output.toon
 ```
 
 ## Why Use the CLI?
@@ -196,6 +216,7 @@ toon data.json --key-folding safe --delimiter "\t" --stats -o output.toon
 - **Pipeline integration** with existing JSON-based workflows
 - **Flexible formatting** with delimiter and indentation options
 - **Key folding** to collapse nested wrappers for additional token savings
+- **Memory-efficient streaming** for both encode and decode operations - process large datasets without loading entire outputs into memory
 
 ## Related
 

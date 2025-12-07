@@ -33,17 +33,20 @@ Benchmarks test LLM comprehension across different input formats using 209 data 
 
 #### Efficiency Ranking (Accuracy per 1K Tokens)
 
-Each format's overall performance, balancing accuracy against token cost:
+Each format ranked by efficiency (accuracy percentage per 1,000 tokens):
 
 ```
-TOON           ████████████████████   26.9  │  73.9% acc  │  2,744 tokens
-JSON compact   █████████████████░░░   22.9  │  70.7% acc  │  3,081 tokens
-YAML           ██████████████░░░░░░   18.6  │  69.0% acc  │  3,719 tokens
-JSON           ███████████░░░░░░░░░   15.3  │  69.7% acc  │  4,545 tokens
-XML            ██████████░░░░░░░░░░   13.0  │  67.1% acc  │  5,167 tokens
+TOON           ████████████████████   26.9 acc%/1K tok  │  73.9% acc  │  2,744 tokens
+JSON compact   █████████████████░░░   22.9 acc%/1K tok  │  70.7% acc  │  3,081 tokens
+YAML           ██████████████░░░░░░   18.6 acc%/1K tok  │  69.0% acc  │  3,719 tokens
+JSON           ███████████░░░░░░░░░   15.3 acc%/1K tok  │  69.7% acc  │  4,545 tokens
+XML            ██████████░░░░░░░░░░   13.0 acc%/1K tok  │  67.1% acc  │  5,167 tokens
 ```
 
-TOON achieves **73.9%** accuracy (vs JSON's 69.7%) while using **39.6% fewer tokens**.
+*Efficiency score = (Accuracy % ÷ Tokens) × 1,000. Higher is better.*
+
+> [!TIP]
+> TOON achieves **73.9%** accuracy (vs JSON's 69.7%) while using **39.6% fewer tokens**.
 
 **Note on CSV:** Excluded from ranking as it only supports 109 of 209 questions (flat tabular data only). While CSV is highly token-efficient for simple tabular data, it cannot represent nested structures that other formats handle.
 
@@ -85,7 +88,8 @@ grok-4-fast-non-reasoning
   CSV            ██████████░░░░░░░░░░    52.3% (57/109)
 ```
 
-**Key tradeoff:** TOON achieves **73.9% accuracy** (vs JSON's 69.7%) while using **39.6% fewer tokens** on these datasets.
+> [!TIP]
+> TOON achieves **73.9% accuracy** (vs JSON's 69.7%) while using **39.6% fewer tokens** on these datasets.
 
 <details>
 <summary><strong>Performance by dataset, model, and question type</strong></summary>
@@ -138,11 +142,11 @@ grok-4-fast-non-reasoning
 
 | Format | Accuracy | Tokens | Correct/Total |
 | ------ | -------- | ------ | ------------- |
-| `toon` | 62.9% | 8,780 | 83/132 |
-| `csv` | 61.4% | 8,528 | 81/132 |
-| `yaml` | 59.8% | 13,142 | 79/132 |
-| `json-compact` | 55.3% | 11,465 | 73/132 |
-| `json-pretty` | 56.1% | 15,158 | 74/132 |
+| `toon` | 62.9% | 8,779 | 83/132 |
+| `csv` | 61.4% | 8,527 | 81/132 |
+| `yaml` | 59.8% | 13,141 | 79/132 |
+| `json-compact` | 55.3% | 11,464 | 73/132 |
+| `json-pretty` | 56.1% | 15,157 | 74/132 |
 | `xml` | 48.5% | 17,105 | 64/132 |
 
 ##### Semi-uniform event logs
@@ -268,18 +272,16 @@ grok-4-fast-non-reasoning
 
 </details>
 
-<details>
-<summary><strong>How the benchmark works</strong></summary>
-
 #### What's Being Measured
 
-This benchmark tests **LLM comprehension and data retrieval accuracy** across different input formats. Each LLM receives formatted data and must answer questions about it (this does **not** test model's ability to generate TOON output).
+This benchmark tests **LLM comprehension and data retrieval accuracy** across different input formats. Each LLM receives formatted data and must answer questions about it. This does **not** test the model's ability to generate TOON output – only to read and understand it.
 
 #### Datasets Tested
 
 Eleven datasets designed to test different structural patterns and validation capabilities:
 
 **Primary datasets:**
+
 1. **Tabular** (100 employee records): Uniform objects with identical fields – optimal for TOON's tabular format.
 2. **Nested** (50 e-commerce orders): Complex structures with nested customer objects and item arrays.
 3. **Analytics** (60 days of metrics): Time-series data with dates and numeric values.
@@ -288,8 +290,9 @@ Eleven datasets designed to test different structural patterns and validation ca
 6. **Nested Config** (1 configuration): Deeply nested configuration with minimal tabular eligibility.
 
 **Structural validation datasets:**
+
 7. **Control**: Valid complete dataset (baseline for validation)
-8. **Truncated**: Array with 3 rows removed from end (tests [N] length detection)
+8. **Truncated**: Array with 3 rows removed from end (tests `[N]` length detection)
 9. **Extra rows**: Array with 3 additional rows beyond declared length
 10. **Width mismatch**: Inconsistent field count (missing salary in row 10)
 11. **Missing fields**: Systematic field omissions (no email in multiple rows)
@@ -312,14 +315,14 @@ Eleven datasets designed to test different structural patterns and validation ca
   - Example: "How many employees in Sales have salary > 80000?" → `5`
   - Example: "How many active employees have more than 10 years of experience?" → `8`
 
-- **Structure awareness (12%)**: Tests format-native structural affordances (TOON's [N] count and {fields}, CSV's header row)
+- **Structure awareness (12%)**: Tests format-native structural affordances (TOON's `[N]` count and `{fields}`, CSV's header row)
   - Example: "How many employees are in the dataset?" → `100`
   - Example: "List the field names for employees" → `id, name, email, department, salary, yearsExperience, active`
   - Example: "What is the department of the last employee?" → `Sales`
 
 - **Structural validation (2%)**: Tests ability to detect incomplete, truncated, or corrupted data using structural metadata
   - Example: "Is this data complete and valid?" → `YES` (control dataset) or `NO` (corrupted datasets)
-  - Tests TOON's [N] length validation and {fields} consistency checking
+  - Tests TOON's `[N]` length validation and `{fields}` consistency checking
   - Demonstrates CSV's lack of structural validation capabilities
 
 #### Evaluation Process
@@ -334,5 +337,3 @@ Eleven datasets designed to test different structural patterns and validation ca
 - **Token counting**: Using `gpt-tokenizer` with `o200k_base` encoding (GPT-5 tokenizer)
 - **Temperature**: Not set (models use their defaults)
 - **Total evaluations**: 209 questions × 6 formats × 4 models = 5,016 LLM calls
-
-</details>
